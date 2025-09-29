@@ -1,0 +1,21 @@
+package io.amichne.dekouple.operation
+
+import io.amichne.dekouple.core.conversion.MessageConverter
+import io.amichne.dekouple.core.types.OpId
+import io.amichne.dekouple.layers.client.ClientRequest
+import io.amichne.dekouple.layers.client.ClientResponse
+import io.amichne.dekouple.layers.domain.Command
+import io.amichne.dekouple.layers.domain.DomainResult
+
+/** Complete operation specification binding all layers together. */
+data class OperationSpec<
+    CReq : ClientRequest,
+    CRes : ClientResponse,
+    Cmd : Command,
+    DRes : DomainResult
+    >(
+    val id: OpId,
+    val clientToCommand: MessageConverter<CReq, Cmd>,
+    val handler: OperationHandler<Cmd, DRes>,
+    val resultToClient: MessageConverter<DRes, CRes>
+)
