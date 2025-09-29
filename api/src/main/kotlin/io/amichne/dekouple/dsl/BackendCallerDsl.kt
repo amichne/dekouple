@@ -28,7 +28,7 @@ class BackendCallerBuilder<H : Host<Req, Res>, Req : BackendRequest<H>, Res : Ba
 }
 
 inline fun <reified H : Host<Req, Res>, reified Req : BackendRequest<H>, reified Res : BackendResponse>
-    backendCaller(block: BackendCallerBuilder<H, Req, Res>.() -> Unit):
+    backendInvoker(block: BackendCallerBuilder<H, Req, Res>.() -> Unit):
     BackendCaller<H, Req, Res> {
     return BackendCallerBuilder<H, Req, Res>().apply(block).build<Res>()
 }

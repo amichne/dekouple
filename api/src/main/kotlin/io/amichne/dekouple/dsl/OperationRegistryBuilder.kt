@@ -32,6 +32,9 @@ class OperationRegistryBuilder {
         registryList.add { spec }
     }
 
+
+
+
     fun build(): List<OperationSpec<*, *, *, *>> {
         return registryList.map { it() }
     }
