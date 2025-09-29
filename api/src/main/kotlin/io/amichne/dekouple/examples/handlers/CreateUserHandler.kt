@@ -9,19 +9,23 @@ import io.amichne.dekouple.examples.domain.CreateUserCommand
 import io.amichne.dekouple.examples.domain.UserCreatedResult
 import io.amichne.dekouple.examples.hosts.UserServiceHost
 import io.amichne.dekouple.middleware.ExecutionContext
-import io.amichne.dekouple.operation.BackendCaller
+import io.amichne.dekouple.operation.BackendCallerRegistry
 import io.amichne.dekouple.operation.OperationHandler
 
 class CreateUserHandler(
-    private val backendCaller: BackendCaller<UserServiceHost, CreateUserBackendRequest, CreateUserBackendResponse>,
     private val commandToBackend: MessageConverter<CreateUserCommand, CreateUserBackendRequest>,
     private val backendToDomain: MessageConverter<CreateUserBackendResponse, UserCreatedResult>
 ) : OperationHandler<CreateUserCommand, UserCreatedResult> {
 
     override suspend fun handle(
         command: CreateUserCommand,
-        context: ExecutionContext
+        context: ExecutionContext,
+        backendCallerRegistry: BackendCallerRegistry
     ): Either<Failure, UserCreatedResult> {
+        // Get the backend caller from the registry
+        val backendCaller = backendCallerRegistry.get<UserServiceHost, CreateUserBackendRequest, CreateUserBackendResponse>()
+            ?: return Either.Left(Failure.MappingFailure("BackendCaller not found for UserServiceHost"))
+
         // Convert command to backend request
         val backendRequest = commandToBackend.convert(command)
             .fold({ return Either.Left(it) }, { it })

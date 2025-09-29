@@ -15,17 +15,17 @@ data class OperationSpec<
     DRes : DomainResult
     >(
     val id: OpId,
-    val clientToCommand: MessageConverter<out CReq, out Cmd>,
-    val handler: OperationHandler<out Cmd, out DRes>,
-    val resultToClient: MessageConverter<out DRes, out CRes>
+    val clientToCommand: MessageConverter<CReq, Cmd>,
+    val handler: OperationHandler<Cmd, DRes>,
+    val resultToClient: MessageConverter<DRes, CRes>
 ) {
     companion object {
         fun <CReq : ClientRequest, CRes : ClientResponse, Cmd : Command, DRes : DomainResult>
             create(
                 id: OpId,
-                clientToCommand: MessageConverter<out CReq, out Cmd>,
-                handler: OperationHandler<out Cmd, out DRes>,
-                resultToClient: MessageConverter<out DRes, out CRes>
+                clientToCommand: MessageConverter<CReq, Cmd>,
+                handler: OperationHandler<Cmd, DRes>,
+                resultToClient: MessageConverter<DRes, CRes>
             ): OperationSpec<CReq, CRes, Cmd, DRes> {
             return OperationSpec(id, clientToCommand, handler, resultToClient)
         }

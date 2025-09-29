@@ -39,27 +39,30 @@ class OperationBuilder<
 @DekoupleDsl
 class BlindOperationBuilder<CReq : ClientRequest, CRes : ClientResponse,
     Cmd : Command, DRes : DomainResult>(val id: OpId) {
-    @PublishedApi internal lateinit var clientToCommand: MessageConverter<out CReq, out Cmd>
-    @PublishedApi internal lateinit var handler: OperationHandler<out Cmd, out DRes>
-    @PublishedApi internal lateinit var resultToClient: MessageConverter<out DRes, out CRes>
+    @PublishedApi internal lateinit var clientToCommand: MessageConverter<CReq, Cmd>
+    @PublishedApi internal lateinit var handler: OperationHandler<Cmd, DRes>
+    @PublishedApi internal lateinit var resultToClient: MessageConverter<DRes, CRes>
 
 
+    @Suppress("UNCHECKED_CAST")
     inline fun <reified CCReq : CReq, reified CCmd : Cmd> clientToCommand(
         converter: () -> MessageConverter<CCReq, CCmd>
     ) {
-        clientToCommand = converter()
+        clientToCommand = converter() as MessageConverter<CReq, Cmd>
     }
 
+    @Suppress("UNCHECKED_CAST")
     inline fun <reified CCmd : Cmd, reified CDRes : DRes> handler(
         operationHandler: () -> OperationHandler<CCmd, CDRes>
     ) {
-        handler = operationHandler()
+        handler = operationHandler() as OperationHandler<Cmd, DRes>
     }
 
+    @Suppress("UNCHECKED_CAST")
     inline fun <reified CDRes : DRes, reified CCRes : CRes> resultToClient(
         converter: () -> MessageConverter<CDRes, CCRes>
     ) {
-        resultToClient = converter()
+        resultToClient = converter() as MessageConverter<DRes, CRes>
     }
 
     @PublishedApi

@@ -10,6 +10,7 @@ import io.amichne.dekouple.middleware.ExecutionContext
 interface OperationHandler<C : Command, R : DomainResult> {
     suspend fun handle(
         command: C,
-        context: ExecutionContext
+        context: ExecutionContext,
+        backendCallerRegistry: BackendCallerRegistry
     ): Either<Failure, R>
 }

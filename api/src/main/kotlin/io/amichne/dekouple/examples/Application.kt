@@ -47,6 +47,13 @@ class Application {
             register(DomainResultToClientResponseConverter())
         }
 
+        // Configure backend callers at the engine level
+        backendCaller<UserServiceHost, CreateUserBackendRequest, CreateUserBackendResponse> {
+            host = UserServiceHost.default
+            endpoint = Endpoint(HttpMethod.POST, "/facts")
+            this.httpClient = this@Application.httpClient
+        }
+
         operations {
             operation(OpId("create-user")) {
                 clientToCommand {
@@ -54,11 +61,6 @@ class Application {
                 }
                 handler {
                     CreateUserHandler(
-                        backendCaller<UserServiceHost, CreateUserBackendRequest, CreateUserBackendResponse> {
-                            host = UserServiceHost.default
-                            endpoint = Endpoint(HttpMethod.POST, "/facts")
-                            this.httpClient = this@Application.httpClient
-                        },
                         CommandToBackendRequestConverter(),
                         BackendResponseToDomainResultConverter()
                     )

@@ -2,7 +2,7 @@ plugins {
     kotlin("jvm")
 }
 
-group = "io.amichne"
+group = "io.amichne.dekouple.api"
 version = "unspecified"
 
 repositories {

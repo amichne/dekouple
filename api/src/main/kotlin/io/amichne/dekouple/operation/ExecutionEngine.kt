@@ -3,7 +3,10 @@ package io.amichne.dekouple.operation
 import io.amichne.dekouple.core.conversion.ConversionRegistry
 import io.amichne.dekouple.core.failure.Failure
 import io.amichne.dekouple.core.types.Either
+import io.amichne.dekouple.core.types.Host
 import io.amichne.dekouple.core.types.OpId
+import io.amichne.dekouple.layers.backend.BackendRequest
+import io.amichne.dekouple.layers.backend.BackendResponse
 import io.amichne.dekouple.layers.client.ClientRequest
 import io.amichne.dekouple.layers.client.ClientResponse
 import io.amichne.dekouple.layers.domain.Command
@@ -18,7 +21,8 @@ import io.amichne.dekouple.middleware.MiddlewareChain
  */
 class ExecutionEngine(
     @PublishedApi internal val operationRegistry: OperationRegistry,
-    @PublishedApi internal val conversionRegistry: ConversionRegistry
+    @PublishedApi internal val conversionRegistry: ConversionRegistry,
+    val backendCallerRegistry: BackendCallerRegistry = BackendCallerRegistry()
 ) {
     @PublishedApi
     internal val inboundMiddleware = MiddlewareChain<Any>()
@@ -54,7 +58,7 @@ class ExecutionEngine(
         // Execution: handle domain command
         @Suppress("UNCHECKED_CAST")
         val handlerResult = executionMiddleware.execute(
-            spec.handler.handle(command, context)
+            spec.handler.handle(command, context, backendCallerRegistry)
         ) { it } as Either<Failure, DomainResult>
 
         val domainResult = when (handlerResult) {
@@ -63,9 +67,7 @@ class ExecutionEngine(
         }
 
         // Outbound: domain result -> client response
-        val responseResult = spec.resultToClient.convert(domainResult)
-
-        return when (responseResult) {
+        return when (val responseResult = spec.resultToClient.convert(domainResult)) {
             is Either.Left -> responseResult
             is Either.Right -> {
                 @Suppress("UNCHECKED_CAST")
@@ -78,4 +80,9 @@ class ExecutionEngine(
     fun useInbound(middleware: Middleware<Any>) = inboundMiddleware.use(middleware)
     fun useExecution(middleware: Middleware<Either<Failure, *>>) = executionMiddleware.use(middleware)
     fun useOutbound(middleware: Middleware<Any>) = outboundMiddleware.use(middleware)
+    
+    inline fun <reified H : Host, reified Req : BackendRequest<H>, reified Res : BackendResponse> 
+    registerBackendCaller(caller: BackendCaller<H, Req, Res>) {
+        backendCallerRegistry.register(caller)
+    }
 }
