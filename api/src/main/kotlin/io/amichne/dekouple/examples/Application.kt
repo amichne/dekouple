@@ -47,11 +47,13 @@ class Application {
             register(DomainResultToClientResponseConverter())
         }
 
-        // Configure backend callers at the engine level
-        backendCaller<UserServiceHost, CreateUserBackendRequest, CreateUserBackendResponse> {
+        // Configure backend callers - types are bound to the Host, eliminating DSL clutter
+        // Before: backendCaller<UserServiceHost, CreateUserBackendRequest, CreateUserBackendResponse>
+        // After: Just specify the Host type, request/response types are inferred!
+        backendCaller {
             host = UserServiceHost.default
             endpoint = Endpoint(HttpMethod.POST, "/facts")
-            this.httpClient = this@Application.httpClient
+            httpClient = this@Application.httpClient
         }
 
         operations {
@@ -69,9 +71,20 @@ class Application {
             }
         }
 
-        inboundMiddleware(MiddlewareDsl.logging("Inbound"))
-        executionMiddleware(MiddlewareDsl.metrics("CreateUser"))
-        outboundMiddleware(MiddlewareDsl.logging("Outbound"))
+        inbound {
+            logging("Inbound")
+            validation()
+        }
+
+        execution {
+            metrics("CreateUser")
+            errorHandling()
+        }
+
+        outbound {
+            logging("Outbound")
+            responseFormatting()
+        }
     }
 
     suspend fun handleRequest(

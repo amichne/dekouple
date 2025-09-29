@@ -22,7 +22,7 @@ class CreateUserHandler(
         context: ExecutionContext,
         backendCallerRegistry: BackendCallerRegistry
     ): Either<Failure, UserCreatedResult> {
-        // Get the backend caller from the registry
+        // Get the backend caller from the registry - much simpler now!
         val backendCaller = backendCallerRegistry.get<UserServiceHost, CreateUserBackendRequest, CreateUserBackendResponse>()
             ?: return Either.Left(Failure.MappingFailure("BackendCaller not found for UserServiceHost"))
 

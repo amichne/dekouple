@@ -7,6 +7,6 @@ import io.amichne.dekouple.layers.backend.BackendRequest
 import io.amichne.dekouple.layers.backend.BackendResponse
 
 /** Backend service caller for external API interactions. */
-interface BackendCaller<H : Host, Req : BackendRequest<H>, Res : BackendResponse> {
+interface BackendCaller<H : Host<Req, Res>, Req : BackendRequest<H>, Res : BackendResponse> {
     suspend fun call(request: Req): Either<Failure, Res>
 }

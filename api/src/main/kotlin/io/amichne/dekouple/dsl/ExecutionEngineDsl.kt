@@ -7,10 +7,8 @@ import io.amichne.dekouple.core.types.Host
 import io.amichne.dekouple.layers.backend.BackendRequest
 import io.amichne.dekouple.layers.backend.BackendResponse
 import io.amichne.dekouple.middleware.Middleware
-import io.amichne.dekouple.operation.BackendCaller
 import io.amichne.dekouple.operation.ExecutionEngine
 import io.amichne.dekouple.operation.OperationRegistry
-import kotlin.reflect.KClass
 
 /** DSL for building execution engines with middleware configuration. */
 
@@ -21,7 +19,9 @@ class ExecutionEngineBuilder {
     private val inboundMiddlewares = mutableListOf<Middleware<Any>>()
     private val executionMiddlewares = mutableListOf<Middleware<Either<Failure, *>>>()
     private val outboundMiddlewares = mutableListOf<Middleware<Any>>()
-    private val backendCallerRegistrations = mutableListOf<(ExecutionEngine) -> Unit>()
+
+    @PublishedApi
+    internal val backendCallerRegistrations = mutableListOf<(ExecutionEngine) -> Unit>()
 
     fun operations(block: OperationRegistryBuilder.() -> Unit) {
         OperationRegistryBuilder().apply(block).apply {
@@ -33,36 +33,142 @@ class ExecutionEngineBuilder {
         conversionRegistry.apply(block)
     }
 
-    fun inboundMiddleware(middleware: Middleware<Any>) {
-        inboundMiddlewares.add(middleware)
+    fun inbound(block: InboundMiddlewareScope.() -> Unit) {
+        InboundMiddlewareScope().apply(block)
     }
 
-    fun executionMiddleware(middleware: Middleware<Either<Failure, *>>) {
-        executionMiddlewares.add(middleware)
+    fun execution(block: ExecutionMiddlewareScope.() -> Unit) {
+        ExecutionMiddlewareScope().apply(block)
     }
 
-    fun outboundMiddleware(middleware: Middleware<Any>) {
-        outboundMiddlewares.add(middleware)
+    fun outbound(block: OutboundMiddlewareScope.() -> Unit) {
+        OutboundMiddlewareScope().apply(block)
     }
 
-    fun <H : Host, Req : BackendRequest<H>, Res : BackendResponse> backendCaller(
-        hostClass: KClass<H>,
-        requestClass: KClass<Req>,
-        responseClass: KClass<Res>,
-        block: BackendCallerBuilder<H, Req, Res>.() -> Unit
-    ) {
-        val caller = BackendCallerBuilder<H, Req, Res>().apply {
-            block()
-            responseType = responseClass.java
-        }.build()
-        backendCallerRegistrations.add { engine ->
-            engine.backendCallerRegistry.register(hostClass, requestClass, responseClass, caller)
+    @DekoupleDsl
+    inner class InboundMiddlewareScope {
+        fun install(middleware: Middleware<Any>) {
+            this@ExecutionEngineBuilder.inboundMiddlewares.add(middleware)
+        }
+
+        fun install(vararg middlewares: Middleware<Any>) {
+            this@ExecutionEngineBuilder.inboundMiddlewares.addAll(middlewares)
+        }
+
+        fun logging(
+            prefix: String = "Inbound",
+            logRequest: Boolean = true,
+            logResponse: Boolean = true
+        ) {
+            install(MiddlewareDsl.logging<Any>(prefix, logRequest, logResponse))
+        }
+
+        fun validation() {
+            install(MiddlewareDsl.validation<Any>())
+        }
+
+        fun errorHandler(onError: (Throwable) -> Any) {
+            install(MiddlewareDsl.errorHandler(onError))
+        }
+
+        fun conditional(
+            predicate: (Any) -> Boolean,
+            middleware: Middleware<Any>
+        ) {
+            install(MiddlewareDsl.conditional(predicate, middleware))
+        }
+
+        fun transform(transformation: (Any) -> Any) {
+            install(MiddlewareDsl.transform(transformation))
         }
     }
 
-    inline fun <reified H : Host, reified Req : BackendRequest<H>, reified Res : BackendResponse>
-    backendCaller(noinline block: BackendCallerBuilder<H, Req, Res>.() -> Unit) {
-        backendCaller(H::class, Req::class, Res::class, block)
+    @DekoupleDsl
+    inner class ExecutionMiddlewareScope {
+        fun install(middleware: Middleware<Either<Failure, *>>) {
+            this@ExecutionEngineBuilder.executionMiddlewares.add(middleware)
+        }
+
+        fun install(vararg middlewares: Middleware<Either<Failure, *>>) {
+            this@ExecutionEngineBuilder.executionMiddlewares.addAll(middlewares)
+        }
+
+        fun metrics(name: String = "Operation") {
+            install(MiddlewareDsl.metrics(name))
+        }
+
+        fun errorHandling() {
+            install(MiddlewareDsl.errorHandling())
+        }
+
+        fun logging(
+            prefix: String = "Execution",
+            logRequest: Boolean = true,
+            logResponse: Boolean = true
+        ) {
+            install(MiddlewareDsl.logging<Either<Failure, *>>(prefix, logRequest, logResponse))
+        }
+
+        fun conditional(
+            predicate: (Either<Failure, *>) -> Boolean,
+            middleware: Middleware<Either<Failure, *>>
+        ) {
+            install(MiddlewareDsl.conditional(predicate, middleware))
+        }
+    }
+
+    @DekoupleDsl
+    inner class OutboundMiddlewareScope {
+        fun install(middleware: Middleware<Any>) {
+            this@ExecutionEngineBuilder.outboundMiddlewares.add(middleware)
+        }
+
+        fun install(vararg middlewares: Middleware<Any>) {
+            this@ExecutionEngineBuilder.outboundMiddlewares.addAll(middlewares)
+        }
+
+        fun logging(
+            prefix: String = "Outbound",
+            logRequest: Boolean = true,
+            logResponse: Boolean = true
+        ) {
+            install(MiddlewareDsl.logging<Any>(prefix, logRequest, logResponse))
+        }
+
+        fun responseFormatting() {
+            install(MiddlewareDsl.responseFormatting<Any>())
+        }
+
+        fun errorHandler(onError: (Throwable) -> Any) {
+            install(MiddlewareDsl.errorHandler(onError))
+        }
+
+        fun conditional(
+            predicate: (Any) -> Boolean,
+            middleware: Middleware<Any>
+        ) {
+            install(MiddlewareDsl.conditional(predicate, middleware))
+        }
+
+        fun transform(transformation: (Any) -> Any) {
+            install(MiddlewareDsl.transform(transformation))
+        }
+
+        inline fun <reified T : Middleware<Any>> install(
+            middleware: T,
+            noinline configure: T.() -> Unit = {}
+        ) {
+            middleware.configure()
+            install(middleware)
+        }
+    }
+
+    inline fun <reified H : Host<Req, Res>, reified Req : BackendRequest<H>, reified Res : BackendResponse>
+        backendCaller(noinline block: BackendCallerBuilder<H, Req, Res>.() -> Unit) {
+        val caller = BackendCallerBuilder<H, Req, Res>().apply(block).build<Res>()
+        backendCallerRegistrations.add { engine ->
+            engine.backendCallerRegistry.register(H::class, caller)
+        }
     }
 
     fun build(): ExecutionEngine {
