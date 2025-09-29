@@ -27,11 +27,53 @@ class OperationBuilder<
     }
 }
 
+//inline fun <reified CReq : ClientRequest, reified CRes : ClientResponse,
+//    reified Cmd : Command, reified DRes : DomainResult>
+//    operation(
+//    id: OpId,
+//    crossinline block: OperationBuilder<CReq, CRes, Cmd, DRes>.() -> Unit
+//): OperationSpec<CReq, CRes, Cmd, DRes> {
+//    return OperationBuilder<CReq, CRes, Cmd, DRes>(id).apply(block).build()
+//}
+
+@DekoupleDsl
+class BlindOperationBuilder<CReq : ClientRequest, CRes : ClientResponse,
+    Cmd : Command, DRes : DomainResult>(val id: OpId) {
+    @PublishedApi internal lateinit var clientToCommand: MessageConverter<out CReq, out Cmd>
+    @PublishedApi internal lateinit var handler: OperationHandler<out Cmd, out DRes>
+    @PublishedApi internal lateinit var resultToClient: MessageConverter<out DRes, out CRes>
+
+
+    inline fun <reified CCReq : CReq, reified CCmd : Cmd> clientToCommand(
+        converter: () -> MessageConverter<CCReq, CCmd>
+    ) {
+        clientToCommand = converter()
+    }
+
+    inline fun <reified CCmd : Cmd, reified CDRes : DRes> handler(
+        operationHandler: () -> OperationHandler<CCmd, CDRes>
+    ) {
+        handler = operationHandler()
+    }
+
+    inline fun <reified CDRes : DRes, reified CCRes : CRes> resultToClient(
+        converter: () -> MessageConverter<CDRes, CCRes>
+    ) {
+        resultToClient = converter()
+    }
+
+    @PublishedApi
+    internal fun build(): OperationSpec<CReq, CRes, Cmd, DRes> {
+        return OperationSpec(id, clientToCommand, handler, resultToClient)
+    }
+
+}
+
 inline fun <reified CReq : ClientRequest, reified CRes : ClientResponse,
     reified Cmd : Command, reified DRes : DomainResult>
     operation(
     id: OpId,
-    crossinline block: OperationBuilder<CReq, CRes, Cmd, DRes>.() -> Unit
+    block: BlindOperationBuilder<CReq, CRes, Cmd, DRes>.() -> Unit
 ): OperationSpec<CReq, CRes, Cmd, DRes> {
-    return OperationBuilder<CReq, CRes, Cmd, DRes>(id).apply(block).build()
+    return BlindOperationBuilder<CReq, CRes, Cmd, DRes>(id).apply(block).build()
 }

@@ -48,11 +48,12 @@ class Application {
         }
 
         operations {
-
-            val createUserOp =
-                operation(OpId("create-user")) {
-                    clientToCommand = ClientToCreateUserCommandConverter()
-                    handler = CreateUserHandler(
+            operation(OpId("create-user")) {
+                clientToCommand {
+                    ClientToCreateUserCommandConverter()
+                }
+                handler {
+                    CreateUserHandler(
                         backendCaller<UserServiceHost, CreateUserBackendRequest, CreateUserBackendResponse> {
                             host = UserServiceHost.default
                             endpoint = Endpoint(HttpMethod.POST, "/facts")
@@ -61,10 +62,9 @@ class Application {
                         CommandToBackendRequestConverter(),
                         BackendResponseToDomainResultConverter()
                     )
-                    resultToClient = DomainResultToClientResponseConverter()
                 }
-
-            register(createUserOp)
+                resultToClient { DomainResultToClientResponseConverter() }
+            }
         }
 
         inboundMiddleware(MiddlewareDsl.logging("Inbound"))

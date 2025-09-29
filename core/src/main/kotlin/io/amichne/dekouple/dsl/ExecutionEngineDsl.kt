@@ -17,8 +17,10 @@ class ExecutionEngineBuilder {
     private val executionMiddlewares = mutableListOf<Middleware<Either<Failure, *>>>()
     private val outboundMiddlewares = mutableListOf<Middleware<Any>>()
 
-    fun operations(block: OperationRegistry.() -> Unit) {
-        operationRegistry.apply(block)
+    fun operations(block: OperationRegistryBuilder.() -> Unit) {
+        OperationRegistryBuilder().apply(block).apply {
+            build().forEach { this@ExecutionEngineBuilder.operationRegistry.register(it) }
+        }
     }
 
     fun conversions(block: ConversionRegistry.() -> Unit) {
