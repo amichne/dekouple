@@ -3,13 +3,8 @@ package io.amichne.dekouple.examples
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import io.amichne.dekouple.core.types.Either
 import io.amichne.dekouple.core.types.OpId
-import io.amichne.dekouple.dsl.MiddlewareDsl
-import io.amichne.dekouple.dsl.backendCaller
 import io.amichne.dekouple.dsl.executionEngine
 import io.amichne.dekouple.dsl.okHttpClient
-import io.amichne.dekouple.dsl.operation
-import io.amichne.dekouple.examples.backend.CreateUserBackendRequest
-import io.amichne.dekouple.examples.backend.CreateUserBackendResponse
 import io.amichne.dekouple.examples.client.CreateUserClientRequest
 import io.amichne.dekouple.examples.client.CreateUserClientResponse
 import io.amichne.dekouple.examples.converters.BackendResponseToDomainResultConverter
@@ -20,12 +15,36 @@ import io.amichne.dekouple.examples.handlers.CreateUserHandler
 import io.amichne.dekouple.examples.hosts.UserServiceHost
 import io.amichne.dekouple.layers.client.ClientRequest
 import io.amichne.dekouple.layers.client.ClientResponse
+import io.amichne.dekouple.dsl.MiddlewareDsl
+import io.amichne.dekouple.dsl.MiddlewareDsl.errorHandling
+import io.amichne.dekouple.dsl.MiddlewareDsl.responseFormatting
+import io.amichne.dekouple.dsl.MiddlewareDsl.validation
+import io.amichne.dekouple.examples.backend.CreateUserBackendRequest
+import io.amichne.dekouple.examples.backend.CreateUserBackendResponse
+import io.amichne.dekouple.middleware.MiddlewareManager
 import io.amichne.dekouple.operation.ExecutionEngine
 import io.amichne.dekouple.transport.http.Endpoint
 import io.amichne.dekouple.transport.http.HttpMethod
 
 /** Example application showcasing the modularized architecture. */
 class Application {
+    init {
+        // Configure central middleware manager (not exposed mutably through DSL)
+        MiddlewareManager.default.apply {
+            configureInbound(
+                MiddlewareDsl.logging("Inbound"),
+                MiddlewareDsl.validation()
+            )
+            configureExecution(
+                MiddlewareDsl.metrics("CreateUser"),
+                MiddlewareDsl.errorHandling()
+            )
+            configureOutbound(
+                MiddlewareDsl.logging("Outbound"),
+                MiddlewareDsl.responseFormatting()
+            )
+        }
+    }
     private val httpClient = okHttpClient {
         moshi {
             factory { KotlinJsonAdapterFactory() }
@@ -47,11 +66,22 @@ class Application {
             register(DomainResultToClientResponseConverter())
         }
 
-        // Configure backend callers at the engine level
-        backendCaller<UserServiceHost, CreateUserBackendRequest, CreateUserBackendResponse> {
-            host = UserServiceHost.default
-            endpoint = Endpoint(HttpMethod.POST, "/facts")
-            this.httpClient = this@Application.httpClient
+        // Configure hosts with multiple endpoints/paths - host instance is now a parameter
+        host(UserServiceHost.default) {
+            httpClient { this@Application.httpClient }
+
+            // Multiple endpoints for the same host
+            endpoint(HttpMethod.POST, "/facts") {
+                // Endpoint-specific configuration
+            }
+
+            endpoint(HttpMethod.GET, "/users/{id}") {
+                // Another endpoint for the same host
+            }
+
+            endpoint(HttpMethod.PUT, "/users/{id}/profile") {
+                // Yet another endpoint for user profile updates
+            }
         }
 
         operations {
@@ -68,10 +98,6 @@ class Application {
                 resultToClient { DomainResultToClientResponseConverter() }
             }
         }
-
-        inboundMiddleware(MiddlewareDsl.logging("Inbound"))
-        executionMiddleware(MiddlewareDsl.metrics("CreateUser"))
-        outboundMiddleware(MiddlewareDsl.logging("Outbound"))
     }
 
     suspend fun handleRequest(

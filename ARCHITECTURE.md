@@ -126,6 +126,31 @@ executionEngine {
 }
 ```
 
+#### Scoped Middleware Configuration
+```kotlin
+executionEngine {
+    middleware {
+        inbound(
+            AuthenticationMiddleware(),
+            ValidationMiddleware(),
+            LoggingMiddleware("Request")
+        )
+
+        execution(
+            MetricsMiddleware("CreateUser"),
+            ErrorHandlingMiddleware(),
+            CircuitBreakerMiddleware()
+        )
+
+        outbound(
+            ResponseFormattingMiddleware(),
+            CacheMiddleware(),
+            LoggingMiddleware("Response")
+        )
+    }
+}
+```
+
 #### Type-Safe Operation Handlers
 ```kotlin
 class CreateUserHandler : OperationHandler<CreateUserCommand, UserCreatedResult> {

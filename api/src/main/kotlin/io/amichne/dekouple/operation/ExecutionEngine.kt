@@ -81,7 +81,7 @@ class ExecutionEngine(
     fun useExecution(middleware: Middleware<Either<Failure, *>>) = executionMiddleware.use(middleware)
     fun useOutbound(middleware: Middleware<Any>) = outboundMiddleware.use(middleware)
     
-    inline fun <reified H : Host, reified Req : BackendRequest<H>, reified Res : BackendResponse> 
+    inline fun <reified H : Host<Req, Res>, reified Req : BackendRequest<H>, reified Res : BackendResponse>
     registerBackendCaller(caller: BackendCaller<H, Req, Res>) {
         backendCallerRegistry.register(caller)
     }

@@ -52,4 +52,24 @@ object MiddlewareDsl {
     ): Middleware<T> = { request, next ->
         next(transformation(request))
     }
+
+    fun <T> validation(): Middleware<T> = { request, next ->
+        // Basic validation placeholder - can be enhanced as needed
+        println("[Validation] Validating request: $request")
+        next(request)
+    }
+
+    fun errorHandling(): Middleware<Either<Failure, *>> = { result, next ->
+        try {
+            next(result)
+        } catch (e: Throwable) {
+            println("[ErrorHandling] Caught error: ${e.message}")
+            result
+        }
+    }
+
+    fun <T> responseFormatting(): Middleware<T> = { response, next ->
+        println("[ResponseFormatting] Formatting response: $response")
+        next(response)
+    }
 }
